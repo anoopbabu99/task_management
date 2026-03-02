@@ -212,9 +212,22 @@
   <div *ngIf="isAuditModalOpen" class="fixed inset-0 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col">
       <div class="flex justify-between items-center p-6 border-b border-gray-200">
-        <h2 class="text-2xl font-bold text-gray-800 flex items-center"><span class="mr-2">🛡️</span> Security Audit Log</h2>
+        <div class="flex items-center space-x-4">
+          <h2 class="text-2xl font-bold text-gray-800 flex items-center"><span class="mr-2">🛡️</span> Security Audit Log</h2>
+          <button (click)="generateAiSummary()" [disabled]="isAiLoading" class="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-bold py-1.5 px-3 rounded shadow-sm text-sm transition flex items-center">
+            <span class="mr-1">✨</span> {{ isAiLoading ? 'Analyzing...' : 'AI Insights' }}
+          </button>
+        </div>
         <button (click)="closeAuditModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
       </div>
+      
+      <div *ngIf="aiSummary" class="m-6 p-4 bg-purple-50 border border-purple-200 rounded-lg shadow-inner">
+        <h3 class="text-sm font-bold text-purple-800 mb-2 uppercase tracking-wider flex items-center">
+          <span class="mr-2">🧠</span> Claude Analysis
+        </h3>
+        <p class="text-sm text-purple-900 leading-relaxed whitespace-pre-line">{{ aiSummary }}</p>
+      </div>
+
       <div class="p-0 overflow-auto flex-grow bg-gray-50">
         <table class="w-full text-left border-collapse">
           <thead class="bg-gray-100 sticky top-0 shadow-sm">

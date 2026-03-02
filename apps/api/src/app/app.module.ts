@@ -10,13 +10,15 @@ import { TasksModule } from './tasks/tasks.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { Organization } from './organizations/entities/organization.entity';
 
+import { AiModule } from './ai/ai.module';
+
 @Module({
   imports: [
     
     ConfigModule.forRoot({
       isGlobal: true, 
     }),
-
+    AiModule,
     // read from .env
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

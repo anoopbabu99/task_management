@@ -15,6 +15,11 @@ export class TaskService {
   getTasks(): Observable<Task[]> {
     return this.http.get<Task[]>(this.apiUrl);
   }
+  askClaude(prompt: string): Observable<string> {
+    // 1. Point directly to the AI controller, not the tasks controller
+    // 2. Removed getHeaders() because your Interceptor handles the JWT automatically!
+    return this.http.post<string>('http://localhost:3000/api/ai/ask', { prompt });
+  }
 
   reorderTasks(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/reorder`, { ids });

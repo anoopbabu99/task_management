@@ -62,6 +62,38 @@ export class TaskListComponent implements OnInit {
     this.loadTasks();
   }
 
+  aiSummary = '';
+  isAiLoading = false;
+
+  closeAuditModal() {
+    this.isAuditModalOpen = false;
+    this.auditLogs = [];
+    this.aiSummary = '';
+  }
+
+  generateAiSummary() {
+    this.isAiLoading = true;
+    this.aiSummary = '';
+    
+    const recentLogs = this.auditLogs.slice(0, 20).map(log => 
+      `[${new Date(log.timestamp).toLocaleString()}] User: ${log.userId}, Action: ${log.action}, Task: ${log.taskId?.substring(0, 5)}, Details: ${log.details}`
+    ).join('\n');
+
+    const prompt = `Analyze these recent task audit logs and provide a brief 2-3 sentence insight on team productivity or bottlenecks:\n${recentLogs}`;
+
+    this.taskService.askClaude(prompt).subscribe({
+      next: (summary: string) => {
+        this.aiSummary = summary;
+        this.isAiLoading = false;
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.aiSummary = 'Failed to load insights.';
+        this.isAiLoading = false;
+      }
+    });
+  }
+
   loadTasks() {
     this.taskService.getTasks().subscribe({
       next: (data) => {
@@ -183,10 +215,7 @@ export class TaskListComponent implements OnInit {
     });
   }
 
-  closeAuditModal() {
-    this.isAuditModalOpen = false;
-    this.auditLogs = [];
-  }
+  
 
   openModal() {
     this.isModalOpen = true;
