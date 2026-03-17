@@ -1,12 +1,16 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, UserRole } from '../users/user.entity';
+import { User } from '../users/user.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { CreateAuthDto } from './dto/create-auth.dto'; // <--- Using the correct file
-import { Task, TaskStatus } from '../tasks/task.entity';
+import { CreateAuthDto } from './dto/create-auth.dto'; 
+import { Task } from '../tasks/task.entity';
+import { TaskStatus } from '@ababu/data';
+import { UserRole } from '@ababu/data';
+
+import { IAuthResponse, ILoginPayload, IRegisterPayload } from '@ababu/data';
 
 
 @Injectable()
@@ -15,8 +19,8 @@ export class AuthService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     @InjectRepository(Organization)
-    private orgRepository: Repository<Organization>, // <--- Inject Org Repo
-    @InjectRepository(Task) // <--- 2. INJECT THIS
+    private orgRepository: Repository<Organization>, 
+    @InjectRepository(Task)  
     private tasksRepository: Repository<Task>,
     private jwtService: JwtService
   ) {}
@@ -53,7 +57,7 @@ export class AuthService {
       if (!organization) throw new BadRequestException('Organization not found');
     } 
     
-    // --- ERROR ---
+    
     else {
       throw new BadRequestException('Must provide organizationName (to create) or organizationId (to join)');
     }
@@ -70,10 +74,10 @@ export class AuthService {
     return this.usersRepository.save(user);
   }
 
-  // ... imports (Make sure Task, User, Organization, UserRole are imported)
+  
 
   async seed() {
-    // 1. CLEANUP (Use query builder to bypass 'empty criteria' check)
+    // 1. CLEANUP 
     // Delete in order: Tasks -> Users -> Orgs (to avoid Foreign Key errors)
     await this.tasksRepository.createQueryBuilder().delete().execute();
     await this.usersRepository.createQueryBuilder().delete().execute();
@@ -142,13 +146,13 @@ export class AuthService {
       })
     );
 
-    return { message: 'Database Seeded! 🚀' };
+    return { message: 'Database Seeded!' };
   }
 
   async login(username: string, pass: string) {
     const user = await this.usersRepository.findOne({ 
       where: { username },
-      relations: ['organization'] // <--- Load the Org so we can put ID in token
+      relations: ['organization'] 
     });
 
     if (!user) throw new UnauthorizedException('User not found');

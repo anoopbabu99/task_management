@@ -12,18 +12,17 @@ export class Organization {
   @CreateDateColumn()
   createdAt: Date;
 
-  // --- HIERARCHY (The Critical Part) ---
+  // --- HIERARCHY ---
   
-  // The Parent Organization (e.g., "SpaceX")
-  // If NULL, this is a Root Org.
+  
   @ManyToOne(() => Organization, (org) => org.children, { nullable: true, onDelete: 'CASCADE' })
   parent: Organization; 
 
-  // The Sub-Organizations (e.g., "Engineering")
+  // The Sub-Organizations
   @OneToMany(() => Organization, (org) => org.parent)
   children: Organization[]; 
   
-  // -------------------------------------
+ 
 
   @OneToMany(() => User, (user) => user.organization)
   users: User[];

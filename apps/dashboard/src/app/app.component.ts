@@ -1,13 +1,13 @@
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router';
-import { NxWelcomeComponent } from './nx-welcome.component';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
+  selector: 'app-root',
   standalone: true,
-  imports: [NxWelcomeComponent, RouterModule],
-  selector: 'task-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css'],
+  imports: [RouterOutlet], 
+  template: `
+    <router-outlet></router-outlet>
+  `
 })
 export class AppComponent {
   title = 'dashboard';

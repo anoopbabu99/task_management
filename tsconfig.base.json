@@ -20,7 +20,9 @@
       ],
       "@ababu-9a4f2c18-6e3d-4b5a-8c9d-1e2f3a4b5c6d/data": [
         "libs/data/src/index.ts"
-      ]
+      ],
+      "@ababu/data": ["libs/data/src/index.ts"],
+      "@ababu/auth": ["libs/auth/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

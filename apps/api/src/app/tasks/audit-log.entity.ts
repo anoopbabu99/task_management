@@ -12,10 +12,10 @@ export class AuditLog {
   taskId: string;
 
   @Column()
-  userId: string; // Who performed the action
+  userId: string; // Who 
 
   @Column()
-  orgId: string; // Which Org did this happen in? (Crucial for filtering!)
+  orgId: string; // Which Org 
 
   @Column({ nullable: true })
   details: string;

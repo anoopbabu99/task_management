@@ -1,12 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne, CreateDateColumn } from 'typeorm';
 import { Task } from '../tasks/task.entity';
 import { Organization } from '../organizations/entities/organization.entity'; // <--- Import this
+import { UserRole } from '@ababu/data';
 
-export enum UserRole {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  VIEWER = 'VIEWER',
-}
 
 @Entity()
 export class User {
@@ -22,10 +18,10 @@ export class User {
   @Column({ type: 'simple-enum', enum: UserRole, default: UserRole.VIEWER })
   role: UserRole;
 
-  // --- CHANGE THIS SECTION ---
+  
   @ManyToOne(() => Organization, (org) => org.users, { nullable: true })
   organization: Organization;
-  // ---------------------------
+  
 
   @OneToMany(() => Task, (task) => task.user)
   tasks: Task[];

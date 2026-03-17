@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsString, IsEnum, IsOptional, IsUUID } from 'class-validator';
-import { UserRole } from '../../users/user.entity';
+import { UserRole } from '@ababu/data';
 
 export class CreateAuthDto {
   @IsNotEmpty()

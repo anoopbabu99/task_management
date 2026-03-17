@@ -9,7 +9,7 @@ export class CreateTaskDto {
   @IsString()
   description: string;
 
-  @IsOptional() // It is optional because we have a default "General"
+  @IsOptional() 
   @IsString()
   category?: string;
 }

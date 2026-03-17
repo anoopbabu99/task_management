@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm'; // <--- Import "In"
-import { Task, TaskStatus } from './task.entity';
-import { AuditLog } from './audit-log.entity'; // <--- Import
-import { Organization } from '../organizations/entities/organization.entity'; // <--- Import
-import { User, UserRole } from '../users/user.entity';
+import { Repository, In } from 'typeorm';
+import { Task } from './task.entity';
+import { AuditLog } from './audit-log.entity';
+import { Organization } from '../organizations/entities/organization.entity';
+import { User } from '../users/user.entity'; 
 import { CreateTaskDto } from './dto/create-task.dto';
+import { UserRole, TaskStatus } from '@ababu/data';
 
 @Injectable()
 export class TasksService {
@@ -13,12 +14,12 @@ export class TasksService {
     @InjectRepository(Task)
     private tasksRepository: Repository<Task>,
     @InjectRepository(AuditLog)
-    private auditLogRepository: Repository<AuditLog>, // <--- Inject
+    private auditLogRepository: Repository<AuditLog>,
     @InjectRepository(Organization)
-    private orgRepository: Repository<Organization>, // <--- Inject
+    private orgRepository: Repository<Organization>,
   ) {}
 
-  // --- HELPER: SAVE LOG ---
+  //  SAVE LOG ---
   private async logAction(user: any, taskId: string, action: string, details: string) {
     const log = this.auditLogRepository.create({
       userId: user.username, 
@@ -30,95 +31,143 @@ export class TasksService {
     return this.auditLogRepository.save(log);
   }
 
-  // --- 1. CREATE TASK ---
-  async createTask(createTaskDto: CreateTaskDto, user: any): Promise<Task> {
-    if (!user.orgId) throw new ForbiddenException('User must belong to an Organization');
-
-    const task = this.tasksRepository.create({
-      title: createTaskDto.title,
-      description: createTaskDto.description,
-      status: TaskStatus.OPEN,
-      user: { id: user.id } as User,
-    });
-    
-    const savedTask = await this.tasksRepository.save(task);
-    
-    // RECORD LOG
-    await this.logAction(user, savedTask.id, 'CREATE', `Created task: ${savedTask.title}`);
-    
-    return savedTask;
+  async reorderTasks(ids: string[], user: any): Promise<void> {
+    // We loop through the IDs provided in the array
+    // The index in the array becomes the new 'order' in the DB
+    for (let i = 0; i < ids.length; i++) {
+      await this.tasksRepository.update(ids[i], { order: i });
+    }
   }
 
-  // --- 2. GET TASKS (Existing Logic) ---
+  // --- 1. CREATE TASK ---
+  
+
+  async createTask(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
+    
+    const { title, description, category } = createTaskDto;
+
+    const task = this.tasksRepository.create({
+      title,
+      description,
+      status: TaskStatus.OPEN,
+      category: category || 'Work', 
+      user, 
+    });
+
+    const savedTask = await this.tasksRepository.save(task);
+
+    await this.logAction(user, savedTask.id, 'CREATE', `Created task: "${title}"`);
+
+    return this.tasksRepository.findOne({
+      where: { id: savedTask.id },
+      relations: ['user', 'user.organization']
+    });
+  }
+
+  // --- 2. GET TASKS ---
   async getTasks(user: any): Promise<Task[]> {
-    const { id, role, orgId } = user;
+    let where: any = {}; 
 
-    if (role === UserRole.VIEWER) {
-      return this.tasksRepository.find({
-        where: { user: { id } }, 
-        relations: ['user', 'user.organization'],
-      });
-    }
-
-    if (role === UserRole.OWNER) {
-      return this.tasksRepository.find({
-        where: [
-          { user: { organization: { id: orgId } } },
-          { user: { organization: { parent: { id: orgId } } } }
-        ],
-        relations: ['user', 'user.organization'],
-      });
+    if (user.role === UserRole.VIEWER) {
+      // 1. Viewers: Only see their OWN tasks
+      where = { user: { id: user.id } };
+    
+    } else if (user.role === UserRole.ADMIN) {
+      // 2. Admins: See tasks in their specific sub-org only
+      where = { user: { organization: { id: user.orgId } } };
+    
+    } else if (user.role === UserRole.OWNER) {
+      // 3. Owners: See tasks in their Org AND direct Child Orgs
+      where = [
+        { user: { organization: { id: user.orgId } } },       // Tasks in my HQ
+        { user: { organization: { parent: { id: user.orgId } } } } // Tasks in my sub-depts
+      ];
     }
 
     return this.tasksRepository.find({
-      where: { user: { organization: { id: orgId } } },
-      relations: ['user', 'user.organization'],
+      where, 
+      relations: ['user', 'user.organization'], 
+      
+      order: { 
+        order: 'ASC', // Sort by custom order first
+        status: 'ASC', // Then by status 
+        createdAt: 'DESC'
+
+      }
     });
   }
 
   // --- 3. UPDATE TASK ---
-  // Update the signature to accept an object
-  async updateTask(id: string, updates: { title?: string; description?: string; status?: TaskStatus }, user: any): Promise<Task> {
+
+  async updateTask(id: string, updates: { title?: string; description?: string; status?: TaskStatus; category?: string }, user: any): Promise<Task> {
     const task = await this.tasksRepository.findOne({ 
       where: { id }, 
-      relations: ['user', 'user.organization'] 
+      relations: ['user', 'user.organization', 'user.organization.parent'] 
     });
 
     if (!task) throw new NotFoundException('Task not found');
 
-    // --- PERMISSION CHECK (Copy-Paste from before) ---
+    // --- PERMISSION CHECK ---
     let canEdit = false;
-    if (task.user.id === user.id) canEdit = true; // Owner can always edit
+    if (task.user.id === user.id) canEdit = true;
     else if (user.role !== UserRole.VIEWER) {
-      // Admin/Owner can edit if in their scope
-      const taskOrgId = task.user.organization.id;
-      const taskParentId = task.user.organization.parent?.id;
+      const taskOrgId = task.user.organization?.id;
+      const taskParentId = task.user.organization?.parent?.id;
       if ((taskOrgId === user.orgId) || (taskParentId === user.orgId)) {
         canEdit = true;
       }
     }
-    
     if (!canEdit) throw new ForbiddenException('Access Denied');
-    // ------------------------------------------------
+    // ------------------------
 
-    // APPLY UPDATES
-    if (updates.title) task.title = updates.title;
-    if (updates.description) task.description = updates.description;
-    if (updates.status) task.status = updates.status;
+    // --- CALCULATE "DIFF" FOR FORMAL LOGS ---
+    const changes: string[] = [];
 
-    const updated = await this.tasksRepository.save(task);
-
-    // LOG IT (Be specific!)
-    await this.logAction(user, task.id, 'UPDATE', `Updated task details: ${Object.keys(updates).join(', ')}`);
+    if (updates.title && updates.title !== task.title) {
+      changes.push(`Title changed from "${task.title}" to "${updates.title}"`);
+      task.title = updates.title;
+    }
     
-    return updated;
+    // 2. Category 
+    if (updates.category && updates.category !== task.category) {
+      const oldCat = task.category || 'General';
+      changes.push(`Category changed from "${oldCat}" to "${updates.category}"`);
+      task.category = updates.category;
+    }
+
+    // 3. Description 
+    if (updates.description && updates.description !== task.description) {
+      const oldDesc = task.description.length > 20 ? task.description.substring(0, 20) + '...' : task.description;
+      const newDesc = updates.description.length > 20 ? updates.description.substring(0, 20) + '...' : updates.description;
+      changes.push(`Description changed from "${oldDesc}" to "${newDesc}"`);
+      task.description = updates.description;
+    }
+
+    // 4. Status
+    if (updates.status && updates.status !== task.status) {
+      changes.push(`Status changed from ${task.status} to ${updates.status}`);
+      task.status = updates.status;
+    }
+
+    // Only save if there were actual changes
+    if (changes.length > 0) {
+      const updated = await this.tasksRepository.save(task);
+      
+      // Log the specific changes
+      await this.logAction(user, task.id, 'UPDATE', changes.join('; '));
+      
+      return updated;
+    }
+
+    return task; // Return original if nothing changed
   }
 
   // --- 4. DELETE TASK ---
   async deleteTask(id: string, user: any): Promise<void> {
     const task = await this.tasksRepository.findOne({ 
       where: { id }, 
-      relations: ['user', 'user.organization'] 
+      
+      relations: ['user', 'user.organization', 'user.organization.parent'] 
     });
 
     if (!task) throw new NotFoundException('Task not found');
@@ -126,8 +175,9 @@ export class TasksService {
     let canDelete = false;
     if (task.user.id === user.id) canDelete = true;
     else if (user.role !== UserRole.VIEWER) {
-      const taskOrgId = task.user.organization.id;
-      const taskParentId = task.user.organization.parent?.id;
+      const taskOrgId = task.user.organization?.id;
+      const taskParentId = task.user.organization?.parent?.id;
+      
       if ((taskOrgId === user.orgId) || (taskParentId === user.orgId)) {
         canDelete = true;
       }
@@ -140,7 +190,7 @@ export class TasksService {
     await this.tasksRepository.delete(id);
   }
 
-  // --- 5. GET AUDIT LOGS (New Endpoint) ---
+  // --- 5. GET AUDIT LOGS ---
   async getAuditLogs(user: any): Promise<AuditLog[]> {
     const { role, orgId } = user;
 

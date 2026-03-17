@@ -1,11 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from 'typeorm';
 import { User } from '../users/user.entity';
 
-export enum TaskStatus {
-  OPEN = 'OPEN',
-  IN_PROGRESS = 'IN_PROGRESS',
-  DONE = 'DONE',
-}
+import { TaskStatus } from '@ababu/data';
 
 @Entity()
 export class Task {
@@ -21,17 +17,17 @@ export class Task {
   @Column({ type: 'simple-enum', enum: TaskStatus, default: TaskStatus.OPEN })
   status: TaskStatus;
 
-  // --- NEW FIELDS ---
+  
   @Column({ default: 'General' }) // Default category
   category: string;
 
-  @Column({ default: 0 }) // For Drag-and-Drop ordering
+  @Column({ type: 'int', default: 0 })
   order: number;
 
-  @CreateDateColumn() // Auto-timestamps for Charts
+  @CreateDateColumn() // Auto-timestamps
   createdAt: Date;
-  // ------------------
+  
 
-  @ManyToOne(() => User, (user) => user.tasks)
+  @ManyToOne(() => User, (user) => user.tasks, { eager: false })
   user: User;
 }
