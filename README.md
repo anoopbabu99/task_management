@@ -15,8 +15,8 @@ Ensure you have the following installed on your machine:
 
 Clone the repository and install dependencies:
 ```bash
-git clone https://github.com/anoopbabu99/ababu-9a4f2c18-6e3d-4b5a-8c9d-1e2f3a4b5c6d.git
-cd https://github.com/anoopbabu99/ababu-9a4f2c18-6e3d-4b5a-8c9d-1e2f3a4b5c6d.git
+git clone https://github.com/anoopbabu99/task_management.git
+cd task_management
 npm install
 ```
 
@@ -45,16 +45,17 @@ password: password123
 username: tom
 password: password123
 
-##### Signup page not added
+### Signup to add new org, users etc!
 
 ## Architecture Overview
 
 ### **Environment Configuration (.env)**
 The application uses environment variables for database connection and JWT security.
 Create a file named .env in the root directory of the project and populate it with the following:
-### Security (JWT)
-JWT_SECRET=super_secret_secure_key_123!
-JWT_EXPIRATION=1h
+### Security (JWT) .env folder:
+##### JWT_SECRET=super_secret_secure_key_123!
+##### DATABASE_NAME=database.sqlite
+##### CLAUDE_API_KEY=
 
 ### Database (SQLite)
 DATABASE_NAME=database.sqlite
@@ -194,21 +195,6 @@ The system enforces a strict 3-tier hierarchy based on the Organization structur
     * **Permissions:** **Strictly Limited**. Can only View, Create, and Edit tasks assigned specifically to *them*.
     * **Restrictions:** Cannot Delete tasks. Cannot view Audit Logs. Cannot see tasks belonging to other colleagues in the same department.
 
-### **2. The "Viewer Visibility" Decision (Design Rationale)**
-
-One of the most critical architectural decisions was defining the scope of the **Viewer** role.
-* *Option A:* Allow Viewers to see all tasks in their Sub-Organization (Collaborative Model).
-* *Option B:* Restrict Viewers to only see their own tasks (Zero-Trust Model).
-
-**We chose Option B (Strict Personal Scope).**
-
-**The Rationale:**
-In security engineering, it is safer to be "wrong and secure" than "wrong and insecure."
-* If we are too strict (Option B), the worst-case scenario is a user complains they can't see a teammate's task. This is a simple **Feature Request** (ticket) to fix.
-* If we are too permissive (Option A), the worst-case scenario is a Viewer (e.g., a contractor) seeing sensitive internal data they shouldn't. This is a **Data Breach**.
-
-Therefore, the system defaults to maximum privacy. Viewers are siloed by default.
-
 ### **3. JWT Integration with Access Control**
 
 We do not query the database to check permissions on every request. Instead, we use **Stateless Authentication** via JWTs.
@@ -330,24 +316,6 @@ Retrieves organization details and its sub-departments.
   ]
 }
 ```
-## 🚀 Future Considerations & Scalability
-
-While the current system implements a robust Zero-Trust architecture, a full-scale enterprise deployment would require the following enhancements to handle high concurrency and complex organizational structures.
-
-### **1. Advanced Role Delegation**
-* **Current State:** The system uses a static 3-tier hierarchy (Owner > Admin > Viewer).
-* **Future State:** Implement **Granular Permission Sets** (e.g., `CAN_DELETE_TASKS`, `CAN_INVITE_USERS`). This would allow for custom roles like "Auditor" (Read-Only Global) or "Project Manager" (Write access to specific task tags, not just ownership).
-* **Delegation:** Allow Admins to temporarily delegate permissions to a Viewer (e.g., "Acting Lead" during holidays) with an automatic expiration.
-
-### **2. Production-Ready Security**
-* **JWT Refresh Tokens:** Currently, the system relies on short-lived Access Tokens. For better UX/Security balance, we would implement **Refresh Token Rotation**. This allows us to keep Access Tokens very short (e.g., 5 mins) while detecting token theft via reuse detection.
-* **CSRF Protection:** Although the API uses Bearer Tokens (which are generally safe from CSRF), enabling strict **CSRF tokens** and `SameSite` cookie policies would provide "Defense in Depth" if we introduce session-based features.
-* **Rate Limiting:** Implement `ThrottlerModule` (Redis-backed) to prevent brute-force attacks on the `/login` endpoint or DoS attacks on the `/tasks` API.
-
-### **3. Efficient Scaling of Permission Checks**
-* **Extra Security:** Currently, role checks are fast because the role is embedded in the JWT. However, this has a "Revocation Gap" (a fired employee's token works until expiry).
-    * *Solution:* Implement a **Redis-backed Revocation List**. The Guard would check Redis for the `jti` (Token ID) on every request. This adds ~2ms latency but ensures instant bans.
-* **Policy Engines:** Hardcoding `RolesGuard` logic works for simple apps. for complex logic (e.g., "Can edit task ONLY if budget < $1000 AND created_at > 7 days"), we would migrate to **Casbin** to decouple policy logic from business code.
 
 
 ## Testing the application: 
