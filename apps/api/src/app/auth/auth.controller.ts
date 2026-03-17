@@ -6,6 +6,10 @@ import { CreateAuthDto } from './dto/create-auth.dto';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+  @Get('organizations')
+  getOrganizations() {
+    return this.authService.getOrganizations();
+  }
 
   
   @Post('seed')

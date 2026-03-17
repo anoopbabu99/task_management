@@ -33,6 +33,9 @@ export class AuthService {
       })
     );
   }
+  signup(data: any) {
+    return this.http.post(`${this.apiUrl}/auth/signup`, data);
+  }
 
   // --- REGISTER ---
   register(payload: IRegisterPayload): Observable<IAuthResponse> {
@@ -67,6 +70,9 @@ export class AuthService {
     } catch (e) {
       return 'Guest';
     }
+  }
+  getOrganizations(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/auth/organizations`);
   }
 
   // Helper to get Role

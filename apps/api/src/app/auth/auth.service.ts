@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, OnModuleInit} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/user.entity';
@@ -14,7 +14,7 @@ import { IAuthResponse, ILoginPayload, IRegisterPayload } from '@ababu/data';
 
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
@@ -24,6 +24,19 @@ export class AuthService {
     private tasksRepository: Repository<Task>,
     private jwtService: JwtService
   ) {}
+  async onModuleInit() {
+    // 1. Check if the database has any users
+    const userCount = await this.usersRepository.count();
+    
+    // 2. If it is 0, it means TypeORM creates a fresh database.sqlite file
+    if (userCount === 0) {
+      console.log('🌱 Fresh database detected. Running auto-seed...');
+      await this.seed();
+      console.log('✅ Database successfully seeded with default SpaceX data!');
+    } else {
+      console.log(`✅ Database already exists. Found ${userCount} users. Skipping seed.`);
+    }
+  }
 
   async register(createAuthDto: CreateAuthDto) {
     const { username, password, role, organizationName, organizationId, parentId } = createAuthDto;
@@ -148,11 +161,20 @@ export class AuthService {
 
     return { message: 'Database Seeded!' };
   }
+  async getOrganizations() {
+    // Fetches all orgs and includes their parent so we can separate Roots from Subs
+    return this.orgRepository.find({ relations: ['parent'] });
+  }
 
   async login(username: string, pass: string) {
+    // 1. Force TypeORM to grab the exact hierarchy
     const user = await this.usersRepository.findOne({ 
       where: { username },
-      relations: ['organization'] 
+      relations: {
+        organization: {
+          parent: true // Explicitly fetch the parent row
+        }
+      }
     });
 
     if (!user) throw new UnauthorizedException('User not found');
@@ -160,12 +182,30 @@ export class AuthService {
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) throw new UnauthorizedException('Wrong password');
 
-    // Add Org ID to the token payload
+    // 2. Strict mapping
+    let companyName = null;
+    let departmentName = null;
+
+    if (user.organization) {
+      if (user.organization.parent) {
+        // Sub-Org: Parent is Company, Current is Dept
+        companyName = user.organization.parent.name;
+        departmentName = user.organization.name;
+      } else {
+        // Root Org: Current is Company, Dept is null
+        companyName = user.organization.name;
+        departmentName = null;
+      }
+    }
+
+    // 3. Construct Payload
     const payload = { 
       sub: user.id, 
       username: user.username, 
       role: user.role,
-      orgId: user.organization ? user.organization.id : null 
+      orgId: user.organization ? user.organization.id : null, 
+      companyName: companyName,
+      departmentName: departmentName
     };
     
     return {

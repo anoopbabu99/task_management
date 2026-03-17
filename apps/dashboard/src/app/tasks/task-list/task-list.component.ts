@@ -40,8 +40,9 @@ export class TaskListComponent implements OnInit {
   doneTasks: Task[] = [];
 
   currentUsername = '';
-  myDepartment = '';
   userRole = '';
+  companyName = '';
+  departmentName: string | null = null;
   
   private taskService = inject(TaskService);
   private authService = inject(AuthService);
@@ -59,6 +60,18 @@ export class TaskListComponent implements OnInit {
   ngOnInit() {
     this.currentUsername = this.authService.getUsername();
     this.userRole = this.authService.getUserRole();
+    
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      
+      // ✨ THIS WILL PROVE WHAT THE BACKEND SENT ✨
+      console.log('Decoded JWT Payload:', payload);
+
+      this.companyName = payload.companyName || 'My Workspace';
+      this.departmentName = payload.departmentName || null; 
+    }
+
     this.loadTasks();
   }
 
@@ -105,7 +118,7 @@ export class TaskListComponent implements OnInit {
         
         
         this.applyFilters(); 
-        this.calculateMyDepartment();
+        
       },
       error: (err) => console.error('Failed to load tasks', err)
     });
@@ -307,7 +320,7 @@ export class TaskListComponent implements OnInit {
   private calculateMyDepartment() {
     const myTask = this.allTasks.find(t => t.user?.username === this.currentUsername);
     if (myTask && myTask.user?.organization) {
-      this.myDepartment = myTask.user.organization.name;
+      this.companyName = myTask.user.organization.name;
     }
   }
 }

@@ -3,11 +3,12 @@
   <div class="flex justify-between items-end mb-8 border-b border-gray-200 pb-4">
     <div>
        <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Organization</h2>
-       <div class="flex items-center space-x-2">
-         <h1 class="text-2xl font-bold text-gray-900">SpaceX</h1>
-         <span *ngIf="myDepartment && myDepartment !== 'SpaceX'" 
-               class="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-           {{ myDepartment }}
+       <div class="flex items-center space-x-3">
+         <h1 class="text-2xl font-bold text-gray-900">{{ companyName }}</h1>
+         
+         <span *ngIf="departmentName" 
+               class="px-2 py-1 rounded text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 uppercase tracking-wide shadow-sm">
+           Dept: {{ departmentName }}
          </span>
        </div>
     </div>
